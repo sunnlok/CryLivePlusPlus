@@ -8,7 +8,7 @@
 
 namespace Cry
 {
-	namespace LPP
+	namespace Lpp
 	{
 		class CLivePlusPlus final
 			: public Cry::LPP::ILivePlusPlus
@@ -73,7 +73,7 @@ namespace Cry
 			//Reference to the live++ module;
 			HMODULE m_livePP = NULL;
 			
-			//Store the Path and executable name in UTF-8 because we need it for enabeling/disabeling modules 
+			//Store the Path and executable name in UTF-8 because we need it for enabling/disabling modules 
 			string m_executablePath;
 			string m_executableName;
 

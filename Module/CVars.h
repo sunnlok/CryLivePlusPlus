@@ -4,7 +4,7 @@ struct ICVar;
 
 namespace Cry
 {
-	namespace LPP
+	namespace Lpp
 	{
 		struct SLPPVariables final
 		{

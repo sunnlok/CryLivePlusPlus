@@ -3,7 +3,7 @@
 #include "CrySystem/IConsole.h"
 #include "Live++.h"
 
-using namespace Cry::LPP;
+using namespace Cry::Lpp;
 
 
 static void RecompileCMD(IConsoleCmdArgs* pArgs)
@@ -52,8 +52,6 @@ static void OnEnableForAllPluginsChanged(ICVar* pVar)
 	if (auto pLPP = CLivePlusPlus::Get())
 		pLPP->EnableAllPlugins(pVar->GetIVal());
 }
-
-
 
 static void OnSyncPointModeChanged(ICVar* pVar)
 {

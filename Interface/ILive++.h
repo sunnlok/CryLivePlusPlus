@@ -4,26 +4,26 @@
 
 namespace Cry
 {
-	namespace LPP
+	namespace Lpp
 	{
 		//Implement and register this interface to receive patch events.
 		struct IPatchListener
 		{
 			//Triggered pre module patch
-			virtual void OnPrePatch() {};
+			virtual void OnPrePatch() {}
 			//Triggered post module patch
-			virtual void OnPostPatch() {};
+			virtual void OnPostPatch() {}
 		};
 
 		//Implement and register this interface to receive compile events.
 		struct ICompileListener
 		{
 			//Triggered on compilation start
-			virtual void OnCompileStarted() {};
+			virtual void OnCompileStarted() {}
 			//Triggered when the compilation was successful
-			virtual void OnCompileSuccess() {};
+			virtual void OnCompileSuccess() {}
 			//Triggered if an error occured during compilation
-			virtual void OnCompileError() {};
+			virtual void OnCompileError() {}
 		};
 
 		//Query this plugin to use Live++ functionality
@@ -31,7 +31,7 @@ namespace Cry
 		{
 			CRYINTERFACE_DECLARE_GUID(ILivePlusPlus, "{D4FAA642-02EE-4C1A-A5B9-2320474D4247}"_cry_guid);
 		public:
-			virtual ~ILivePlusPlus() {};
+			virtual ~ILivePlusPlus() {}
 
 			//Enables or disables a module for Live++ usage. Assumes Dll if no exenstion is specified
 			virtual bool EnableModule(const char* module, bool bEnable = true) = 0;
@@ -47,10 +47,10 @@ namespace Cry
 			virtual void EnableExecutable(bool bEnable) = 0;
 
 			//Manually triggers a live++ sync point
-			virtual void TriggerSyncPoint() const = 0;;
+			virtual void TriggerSyncPoint() const = 0;
 
 			//Triggers a Live++ recompile
-			virtual void TriggerRecompile() const = 0;;
+			virtual void TriggerRecompile() const = 0;
 
 			//Returns the list of enabled modules
 			virtual const std::vector<string>& GetEnabledModules() const = 0;

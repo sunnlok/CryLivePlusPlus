@@ -1,7 +1,7 @@
 
 
 
-# <img src="https://molecular-matters.com/docs/livepp/assets/img/favicon.png" width="30" height="30" />Live++   **//**<img src="https://www.cryengine.com/assets/img/cryengine-logo.svg" width="200" height="20" />
+# <img src="https://molecular-matters.com/docs/livepp/assets/img/favicon.png" width="30" height="30" />Live++   **//** CRYENGINE
 
 This plugin enables the use of [Live++](https://molecular-matters.com/products_livepp.html) by Molecular Matter inside of Cryengine.   
 Live++ allows for easy hot-reloading and on the fly changes to native C++ code.
