@@ -14,7 +14,7 @@
 #define  LPP_MODULE "Live++/LPP_x86.dll"
 #endif 
 
-using namespace Cry::LPP;
+using namespace Cry::Lpp;
 
 CLivePlusPlus* g_Instance = nullptr;
 CLivePlusPlus* CLivePlusPlus::Get()

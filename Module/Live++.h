@@ -11,11 +11,11 @@ namespace Cry
 	namespace Lpp
 	{
 		class CLivePlusPlus final
-			: public Cry::LPP::ILivePlusPlus
+			: public Cry::Lpp::ILivePlusPlus
 			, public ISystemEventListener
 		{
 			CRYINTERFACE_BEGIN()
-				CRYINTERFACE_ADD(Cry::LPP::ILivePlusPlus)
+				CRYINTERFACE_ADD(Cry::Lpp::ILivePlusPlus)
 				CRYINTERFACE_ADD(Cry::IEnginePlugin)
 			CRYINTERFACE_END()
 

@@ -9,9 +9,7 @@ using namespace Cry::Lpp;
 static void RecompileCMD(IConsoleCmdArgs* pArgs)
 {
 	if (auto pLPP = CLivePlusPlus::Get())
-	{
 		pLPP->TriggerRecompile();
-	}
 }
 
 static void ChangeModulesCMD(IConsoleCmdArgs* pArgs, bool bEnable = true)
@@ -19,9 +17,7 @@ static void ChangeModulesCMD(IConsoleCmdArgs* pArgs, bool bEnable = true)
 	if (auto pLPP = CLivePlusPlus::Get())
 	{
 		for (int i = 1; i < pArgs->GetArgCount(); ++i)
-		{
 			pLPP->EnableModule(pArgs->GetArg(i), bEnable);
-		}
 	}
 }
 
