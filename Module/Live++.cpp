@@ -7,11 +7,16 @@
 
 #include <LPP_API.h>
 #include "CryCore/StlUtils.h"
+#include "ProgressMeter.h"
+
+#ifdef LPP_BUILD_SYSTEM
+#include "BuildSystem/BuildSystem.h"
+#endif
 
 #ifdef CRY_PLATFORM_X64
-#define  LPP_MODULE "Live++/LPP_x64.dll"
+#define  LPP_MODULE "LPP_x64.dll"
 #else
-#define  LPP_MODULE "Live++/LPP_x86.dll"
+#define  LPP_MODULE "LPP_x86.dll"
 #endif 
 
 using namespace Cry::Lpp;
@@ -30,7 +35,13 @@ CLivePlusPlus::~CLivePlusPlus()
 
 bool CLivePlusPlus::Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams)
 {
+	FindExecutablePath();
+
 	//Make sure the Live++ Module is loaded
+	fs::path lppPath = m_executablePath;
+	lppPath.replace_filename(L"Live++");
+	//lppPath /= ;
+	SetDllDirectoryW(lppPath.c_str());
 	m_livePP = CryLoadLibrary(LPP_MODULE);
 	if (m_livePP == NULL)
 	{
@@ -59,6 +70,24 @@ bool CLivePlusPlus::Initialize(SSystemGlobalEnvironment& env, const SSystemInitP
 	if (m_variables.useExceptionHandler)
 		lpp::lppInstallExceptionHandler(m_livePP);
 
+	//Check if we should use cryengines build system
+#ifdef LPP_BUILD_SYSTEM
+	if (m_variables.useExternalBuildSystem)
+	{
+		m_pBuildSystem = std::make_unique<CBuildSystem>(this);
+		if (!m_pBuildSystem->Init())
+		{
+			m_pBuildSystem.reset(nullptr);
+			m_variables.useExternalBuildSystem = 0;
+		}
+		else
+		{
+			lpp::lppUseExternalBuildSystem(m_livePP);
+		}
+	}
+#endif
+		
+
 	//Register the process group
 	string groupName;
 	groupName.Format("%s %s", pSystem->GetIProjectManager()->GetCurrentProjectName(), pSystem->GetProductVersion().ToString().c_str());
@@ -76,22 +105,28 @@ bool CLivePlusPlus::Initialize(SSystemGlobalEnvironment& env, const SSystemInitP
 
 
 	pSystem->GetISystemEventDispatcher()->RegisterListener(this, "Live++");
+	EnableUpdate(EUpdateStep::MainUpdate, true);
+	m_pProgressMeter = std::make_unique<CProgressMeter>();
 	return true;
+}
+
+void CLivePlusPlus::FindExecutablePath()
+{
+	//Extract the executable path
+	wchar_t moduleName[MAX_PATH + 1];
+	GetModuleFileNameW(NULL, moduleName, MAX_PATH + 1);
+	m_executablePath = moduleName;
 }
 
 void CLivePlusPlus::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
-	if (event != ESystemEvent::ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE || m_livePP == NULL)
-		return;
+	if (event == ESystemEvent::ESYSTEM_EVENT_CRYSYSTEM_INIT_DONE && m_livePP != NULL)
+		OnSystemInitialized();
+}
 
+void CLivePlusPlus::OnSystemInitialized()
+{
 	SetSyncPointMode(m_variables.syncPointMode);
-
-	//Extract the executable path
-	wchar_t moduleName[MAX_PATH + 1];
-	GetModuleFileNameW(NULL, moduleName, MAX_PATH + 1);
-	m_executablePath = CryStringUtils::WStrToUTF8(moduleName);
-	m_executableName = PathUtil::GetFileName(m_executablePath);
-	m_executablePath = PathUtil::GetPathWithoutFilename(m_executablePath);
 
 	if (m_variables.pEnabledModules)
 	{
@@ -118,7 +153,6 @@ void CLivePlusPlus::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR 
 	if (m_variables.enableForAllPlugins)
 		EnableAllPlugins(true);
 }
-
 
 void CLivePlusPlus::SetSyncPointMode(int mode)
 {
@@ -160,13 +194,12 @@ void CLivePlusPlus::EnableAllPlugins(bool bEnable)
 
 void CLivePlusPlus::EnableExecutable(bool bEnable)
 {
-	if (!m_executableName.empty())
+	if (!m_executablePath.empty() && m_executablePath.has_filename())
 	{
-		//We need to add the .exe if its missing
-		if (m_executableName.find(".exe") == -1)
-			m_executableName.append(".exe");
+		if (!m_executablePath.has_extension())
+			m_executablePath.replace_extension(".exe");
 
-		if (EnableModule(m_executableName.c_str(), bEnable))
+		if (EnableModule(m_executablePath.filename().u8string().c_str(), bEnable))
 			m_variables.enableForExecutable = bEnable;
 	}
 		
@@ -187,26 +220,46 @@ void CLivePlusPlus::DoSync() const
 
 void CLivePlusPlus::TriggerRecompile() const
 {
-	if (m_livePP)
-		lpp::lppTriggerRecompile(m_livePP);
+	if (!m_livePP)
+		return;
+
+	if (m_pBuildSystem)
+	{
+		for (auto &module : m_enabledModules)
+		{
+			m_pBuildSystem->ApplyModuleChanges(module);
+		}
+
+	}
+
+	lpp::lppTriggerRecompile(m_livePP);
 }
 
 bool CLivePlusPlus::EnableModule(const char* module, bool bEnable /*= true*/)
 {
-	CryLogAlways("[Live++] Trying to enable module %s", module);
+	if (bEnable)
+		CryLogAlways("[Live++] Trying to enable module %s", module);
+	else
+		CryLogAlways("[Live++] Trying to disable module %s", module);
 
-	string moduleName(module);
+	//Module needs to be loaded
+	HMODULE moduleHandle = NULL;
+	if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, module, &moduleHandle))
+		CryLogAlways("[Live++] Failed to get handle for module %s", module);
+
+	wchar_t modulePath[MAX_PATH + 1];
+	if (!GetModuleFileNameW(moduleHandle, modulePath, MAX_PATH + 1))
+		CryLogAlways("[Live++] Failed to get path for module %s", module);
+
+	fs::path path(modulePath);
 
 	//sanitize for .dll or .exe... just in case
-	int extensionPos = moduleName.Find(".dll");
-	if (extensionPos <= 0)
-		extensionPos = moduleName.Find(".exe");
-	
-	//No extension specified, assuming dll
-	if (extensionPos <= 0)
-		moduleName.append(".dll");
+	if (!path.has_extension())
+		path.replace_extension(".dll");
+			
 	
 	//check if the module is already loaded
+	string moduleName(path.filename().u8string().c_str());
 	auto findIter = std::find(m_enabledModules.begin(), m_enabledModules.end(), moduleName);
 
 	if (findIter != m_enabledModules.end() && bEnable)
@@ -220,30 +273,45 @@ bool CLivePlusPlus::EnableModule(const char* module, bool bEnable /*= true*/)
 		return false;
 	}
 		
-	//Create full path... with annoying wchar conversion and all
-	auto fullPath = PathUtil::Make(m_executablePath, moduleName);
-	fullPath = PathUtil::ToDosPath(fullPath);
-	auto fullPathW = CryStringUtils::UTF8ToWStr(fullPath);
-	
-	if (!gEnv->pCryPak->IsFileExist(fullPath.c_str()))
+	if (!fs::exists(path))
 	{
-		CryLogAlways("[Live++] Failed to load module at %s", fullPath.c_str());
+		CryLogAlways("[Live++] Failed to load module at %s", path.u8string().c_str());
 		return false;
 	}
 
 	//Load the module
 	void* waitToken = nullptr;
 	if (bEnable)
-		waitToken = lpp::lppEnableModuleAsync(m_livePP, fullPathW.c_str());
+	{
+#ifdef LPP_BUILD_SYSTEM
+		if (m_pBuildSystem.get() && m_pBuildSystem->AddModuleWatch(moduleName, path))
+#endif 
+		{
+			waitToken = lpp::lppEnableModuleAsync(m_livePP, path.c_str());
+		}
+	}
 	else
-		waitToken = lpp::lppDisableModuleAsync(m_livePP, fullPathW.c_str());
+	{
+#ifdef LPP_BUILD_SYSTEM
+		if (m_pBuildSystem.get())
+			m_pBuildSystem->RemoveModuleWatch(moduleName);
+#endif 
+		waitToken = lpp::lppDisableModuleAsync(m_livePP, path.c_str());
+	}
+		
 	
 	if (!waitToken)
 	{
-		CryLogAlways("[Live++] Failed to load module at %s", fullPath.c_str());
+		CryLogAlways("[Live++] Failed to load module at %s", path.u8string().c_str());
 		return false;
 	}
 	lpp::lppWaitForToken(m_livePP, waitToken);
+
+	//Triger a recompile in case the module wasnt recompiled after the last session
+	if (bEnable)
+	{
+		lpp::lppTriggerRecompile(m_livePP);
+	}
 
 	//Update the list
 	if (!bEnable)
@@ -311,6 +379,12 @@ void CLivePlusPlus::TriggerEvent(ELivePlusPlusEvent event)
 				pListener->OnCompileError();
 		}
 	}
+}
+
+void CLivePlusPlus::MainUpdate(float frameTime)
+{
+	if (m_pProgressMeter.get())
+		m_pProgressMeter->Update();
 }
 
 static void OnPrePatch()

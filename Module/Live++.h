@@ -4,6 +4,9 @@
 #include "../interface/ILive++.h"
 #include "CVars.h"
 
+#include "ProgressMeter.h"
+#include "BuildSystem/BuildSystem.h"
+
 
 
 namespace Cry
@@ -30,6 +33,7 @@ namespace Cry
 			virtual const char* GetName() const override { return "Live++"; }
 			virtual void UpdateBeforeSystem() override { DoSync(); }
 			virtual void UpdateAfterRenderSubmit() override { DoSync(); }
+			virtual void MainUpdate(float frameTime) override;
 			// ~Cry::IEnginePlugin
 
 			// ISystemEventListener
@@ -66,16 +70,21 @@ namespace Cry
 			//Registers a listener for Live++ compilation events
 			virtual bool RegisterCompileListener(ICompileListener* pListener) override;
 			virtual void RemoveCompileListener(ICompileListener* pListener) override;
+
+			HMODULE GetLivePP() { return m_livePP; }
 		private:
 			//Trigger Live++ Sync point
 			void DoSync() const;
+			void FindExecutablePath();
+			void OnSystemInitialized();
 
+
+		private:
 			//Reference to the live++ module;
 			HMODULE m_livePP = NULL;
 			
 			//Store the Path and executable name in UTF-8 because we need it for enabling/disabling modules 
-			string m_executablePath;
-			string m_executableName;
+			fs::path m_executablePath;
 
 			//List of all module names for which Live++ should be enabled
 			std::vector<string> m_enabledModules;
@@ -84,8 +93,13 @@ namespace Cry
 			SLPPVariables m_variables;
 
 			//Live++ event listeners
-			std::vector<ICompileListener*> m_compileListeners;
-			std::vector<IPatchListener*> m_patchListeners;
+			std::vector<ICompileListener*>		m_compileListeners;
+			std::vector<IPatchListener*>		m_patchListeners;
+
+			std::unique_ptr<CProgressMeter>		m_pProgressMeter;
+
+			//Instance used for build system interaction to handle compilation manually and add code on the fly
+			std::unique_ptr<CBuildSystem>		m_pBuildSystem;
 		public:
 			enum class ELivePlusPlusEvent
 			{
