@@ -283,9 +283,14 @@ bool CLivePlusPlus::EnableModule(const char* module, bool bEnable /*= true*/)
 	void* waitToken = nullptr;
 	if (bEnable)
 	{
+		bool lppEnable = true;
 #ifdef LPP_BUILD_SYSTEM
-		if (m_pBuildSystem.get() && m_pBuildSystem->AddModuleWatch(moduleName, path))
+		if (m_pBuildSystem.get())
+			lppEnable = m_pBuildSystem->AddModuleWatch(moduleName, path);
+		else
+			lppEnable = !m_variables.useExternalBuildSystem;
 #endif 
+		if(lppEnable)
 		{
 			waitToken = lpp::lppEnableModuleAsync(m_livePP, path.c_str());
 		}
